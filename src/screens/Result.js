@@ -1,4 +1,4 @@
-import React, {useState, useEffect } from 'react';
+import React, {useState, useEffect, useRef } from 'react';
 import {
 View,
 Text,
@@ -18,94 +18,109 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 const Tab = createMaterialTopTabNavigator();
 
 const Result = () => {
-    const navigation = useNavigation();
-    const route = useRoute();
-    const { email } = route.params;
-    const [histories, setHistories] = useState([]);
-    const { historyId} = route.params;
-    
+const forceUpdate = useRef(null);
+const navigation = useNavigation();
+const route = useRoute();
+const { email,token } = route.params;
+const [userRecords, setUserRecords] = useState([]);
+const [data, setData] = useState(userRecords);
+const [bookmarkedItems, setBookmarkedItems] = useState([]);
+const [searchQuery, setSearchQuery] = useState('');
+const [filteredData, setFilteredData] = useState([]);
+const [sortAscending, setSortAscending] = useState(true); // 추가: 정렬 순서 상태
+const bookmarkedRecords = userRecords.filter(item => item.bookmarked);
 
-    const [userRecords, setUserRecords] = useState([]);
+const fetchData = async () => {
+    try {
+        const response = await fetch('http://192.168.0.104:8000/home/history/');
+        if (!response.ok) {
+        throw new Error('네트워크 오류');
+        }
+        const data = await response.json();
+        if (data.code === 200) {
+        const filteredData = data.result.filter((item) => item.email === email);
+        setUserRecords(filteredData);
+        } else {
+        console.error('데이터 가져오기 실패:', data.message);
+        }
+    } catch (error) {
+        console.error('요청 에러: ', error);
+    }
+};
+
+useEffect(() => {
+    forceUpdate.current = forceUpdateFunction;
+    }, []);
+
+    const forceUpdateFunction = () => {
+    setUserRecords([...userRecords]);
+    };
 
     useEffect(() => {
-        fetch(`http://192.168.0.104:8000/home/history/`)
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error('네트워크 오류1');
-                }
-                return response.json();
-            })
-            .then((data) => setHistories(data.result))
-            .catch((error) => console.error('요청 에러: ', error));
-    }, [historyId]);
-
-    if (!histories) {
-        return <Text>Loading...</Text>;
-    }
-
-    useFocusEffect(
-            React.useCallback(() => {
-            fetch('http://192.168.0.104:8000/home/history/')
-            .then((response) => {
-                if (!response.ok) {
-                throw new Error('네트워크 오류2');
-                }
-                return response.json();
-            })
-            .then((data) => {
-                if (data.code === 200) {
-                    const filteredData = data.result.filter((item) => item.email === email);
-                setUserRecords(filteredData);
-            }else {
-                console.error('데이터 가져오기 실패:', data.message);
-            }
-            })
-            .catch((error) => console.error('요청 에러: ', error));
-        }, [email])
-    );
+    fetchData();
+    }, [email]);
 
     
     const getImage = (imagepath) => {
         try {
-        return `http://192.168.0.104:8000/${imagepath}`;
+        return `http://192.168.0.104:8000${imagepath}`;
         } catch (error) {
         console.log('이미지 URL을 가져오는 오류 발생:', error);
         }
     };
 
 
-const [data, setData] = useState(userRecords);
-const [bookmarkedItems, setBookmarkedItems] = useState([]);
-const [searchQuery, setSearchQuery] = useState('');
-const [filteredData, setFilteredData] = useState([]);
-const [sortAscending, setSortAscending] = useState(true); // 추가: 정렬 순서 상태
 
-const handleBookmark = item => {
-    const updatedData = data.map(dataItem => {
-    if (dataItem.id === item.id) {
-        const updatedItem = {...dataItem, bookmarked: !dataItem.bookmarked};
-        if (updatedItem.bookmarked) {
-        setBookmarkedItems(prevBookmarks => [...prevBookmarks, updatedItem]);
-        } else {
-        setBookmarkedItems(prevBookmarks =>
-            prevBookmarks.filter(bookmark => bookmark.id !== item.id),
-        );
+
+
+
+const handleBookmarkAndUpdateData = async (item) => {
+    try {
+        const response = await fetch(
+        `http://192.168.0.104/home/history/${item.id}/`,
+        {
+            method: 'PATCH',
+            headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ bookmarked: !item.bookmarked }),
         }
-        return updatedItem;
+        );
+
+        if (!response.ok) {
+        throw new Error('서버 응답 오류');
+        }
+    
+        const updatedData = data.map((dataItem) => {
+        if (dataItem.id === item.id) {
+            const updateItem = { ...dataItem, bookmarked: !dataItem.bookmarked };
+            return updateItem;
+        }
+        return dataItem;
+        });
+
+        setData(updatedData);
+
+    
+    fetchData();
+
+    } catch (error) {
+        console.error('오류 발생:', error);
     }
-    return dataItem;
-    });
-    setData(updatedData);
 };
 
-const handleResult = item => {
+const handleResult = (item) => {
     navigation.navigate('Result_', {
-    title: item.name,
-    image: item.history_img,
-    explanation: item.causation,
-    date: item.created_at,
-    bookmarked: item.bookmarked,
-    updateBookmark: handleBookmark,
+        id: item.id,
+        title: item.name,
+        image: item.history_img,
+        explanation: item.causation,
+        date: item.created_at,
+        bookmarked: item.bookmarked,
+        updateBookmark: handleBookmarkAndUpdateData,
+        token: token,
+        email
     });
 };
 
@@ -183,90 +198,80 @@ const renderItem = ({item}) => {
     const minutes = String(date.getMinutes()).padStart(2, '0');
 
     const formattedDate = `Date: ${year}-${month}-${day} ${hours}:${minutes}`;
-    
-
-
-    return (
-        <TouchableOpacity
-        style={styles.magazineItem}
-        onPress={() => handleResult(item)}>
-        <View style={styles.imageContainer}>
-            <Image source={{ uri: getImage(item.history_img) }} style={styles.image} 
-            onError={(e) => {
-                console.error('이미지 로딩 오류:', e.nativeEvent.error);
-            }}/>
-            <Text style={styles.smallTitle}>{item.name}</Text>
-            <View style={styles.dateContainer}>
-            <View style={styles.dateBackground}></View>
-            <Text style={styles.dateText}>{formattedDate}</Text>
-            </View>
-            <TouchableOpacity onPress={() => handleBookmark(item)}>
-            <Icon
-                name={item.bookmarked ? 'bookmark' : 'bookmark-border'}
-                size={40}
-                color={item.bookmarked ? 'blue' : 'gray'}
-            />
-            </TouchableOpacity>
-        </View>
-        </TouchableOpacity>
-    );
-};
 
 return (
+    <TouchableOpacity
+    style={styles.magazineItem}
+    onPress={() => handleResult(item)}>
+    <View style={styles.imageContainer}>
+        <Image source={{ uri: getImage(item.history_img) }} style={styles.image} />
+        <Text style={styles.smallTitle}>{item.name}</Text>
+        <View style={styles.dateContainer}>
+        <View style={styles.dateBackground}></View>
+        <Text style={styles.dateText}>{formattedDate}</Text>
+        </View>
+        <TouchableOpacity onPress={() => handleBookmarkAndUpdateData(item)}>
+        <Icon
+            name={item.bookmarked ? 'bookmark' : 'bookmark-border'}
+            size={40}
+            color={item.bookmarked ? 'blue' : 'gray'}
+        />
+        </TouchableOpacity>
+    </View>
+    </TouchableOpacity>
+);
+};
+return (
     <Tab.Navigator>
-    <Tab.Screen
-        name="Result"
-        component={() => (
-        <View style={styles.container}>
-            <View style={styles.searchBar}>
-            <TextInput
-                style={styles.searchInput}
-                placeholder="제목으로 검색"
-                value={searchQuery}
-                onChangeText={text => setSearchQuery(text)}
-            />
-            <View style={styles.iconContainer}>
-                <TouchableOpacity onPress={handleSearch}>
-                <Icon name="search" size={30} color="#8CB972" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleCalendarIconPress}>
-                <Icon name="date-range" size={30} color="#8CB972" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleSortIconPress}>
-                <Icon
-                    name={sortAscending ? 'arrow-upward' : 'arrow-downward'}
-                    size={30}
-                    color="#8CB972"
+        <Tab.Screen name="Result">
+            {() => (
+            <View style={styles.container}>
+                <View style={styles.searchBar}>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="제목으로 검색"
+                    value={searchQuery}
+                    onChangeText={(text) => setSearchQuery(text)}
                 />
-                </TouchableOpacity>
-            </View>
-            </View>
-            <FlatList
+                <View style={styles.iconContainer}>
+                    <TouchableOpacity onPress={handleSearch}>
+                    <Icon name="search" size={30} color="#8CB972" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleCalendarIconPress}>
+                    <Icon name="date-range" size={30} color="#8CB972" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleSortIconPress}>
+                    <Icon
+                        name={sortAscending ? 'arrow-upward' : 'arrow-downward'}
+                        size={30}
+                        color="#8CB972"
+                    />
+                    </TouchableOpacity>
+                </View>
+                </View>
+                <FlatList
                 data={userRecords}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id.toString()}
                 />
-        </View>
-        )}
-    />
-    <Tab.Screen 
-    name="MyBookmark"
-    options={{tabBarLabel: '북마크',}}
-    
-    >
-        {() => (
-        <View style={styles.container}>
-            <FlatList
-            data={bookmarkedItems}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            />
-        </View>
-        )}
-    </Tab.Screen>
-    </Tab.Navigator>
-);
+            </View>
+            )}
+        </Tab.Screen>
+        <Tab.Screen name="MyBookmark" options={{ tabBarLabel: '북마크' }} initialParams={{ token: token, email}}>
+            {() => (
+            <View style={styles.container}>
+                <FlatList
+                data={bookmarkedRecords}
+                renderItem={renderItem}
+                keyExtractor={(item) =>  item.id.toString()}
+                />
+            </View>
+            )}
+        </Tab.Screen>
+        </Tab.Navigator>
+    );
 };
+
 
 const styles = StyleSheet.create({
 container: {

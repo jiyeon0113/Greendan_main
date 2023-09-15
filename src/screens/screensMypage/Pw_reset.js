@@ -15,14 +15,14 @@ const Pw_reset = ({ navigation, route }) => {
             if (new_password1 === basepassword) {
                 Alert.alert('비밀번호 변경 실패', '현재 비밀번호와 새 비밀번호는 같을 수 없습니다.');
                 return;
-              }
+                }
 
-              if (new_password1 !== new_password2) {
-                Alert.alert('비밀번호 확인', '새 비밀번호가 일치하지 않습니다.');
-                return;
-              }
+                if (new_password1 !== new_password2) {
+                    Alert.alert('비밀번호 확인', '새 비밀번호가 일치하지 않습니다.');
+                    return;
+                }
 
-              const djServer = await fetch('http://172.18.80.87:8000/accounts/dj-rest-auth/password/change/', {
+                const djServer = await fetch('http://192.168.0.104:8000/accounts/dj-rest-auth/password/change/', {
                 method: 'POST',
                 headers: {
                 Authorization: `Bearer ${token}`,
@@ -32,23 +32,23 @@ const Pw_reset = ({ navigation, route }) => {
                 new_password1: new_password1,
                 new_password2: new_password2,
         }),
-      });
+        });
 
-      if (djServer.status === 200) {
-        Alert.alert('비밀번호 변경 완료', '비밀번호가 변경되었습니다.', [
-          {
-            text: '확인',
-            onPress: () => navigation.goBack(),
-          },
-        ]);
-      } else {
-        Alert.alert('비밀번호 변경 실패', '비밀번호 변경에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('비밀번호 변경 중 오류 발생:', error);
-    }
-  };
-          
+        if (djServer.status === 200) {
+            Alert.alert('비밀번호 변경 완료', '비밀번호가 변경되었습니다.', [
+            {
+                text: '확인',
+                onPress: () => navigation.goBack(),
+            },
+            ]);
+        } else {
+            Alert.alert('비밀번호 변경 실패', '비밀번호 변경에 실패했습니다.');
+        }
+        } catch (error) {
+        console.error('비밀번호 변경 중 오류 발생:', error);
+        }
+    };
+            
 
     return (
         <View style={styles.container}>

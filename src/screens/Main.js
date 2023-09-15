@@ -13,9 +13,10 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const Main = ({ navigation }) => {
   const [blights, setBlights] = useState([]);
-  const [histories, setHistories] = useState([]);
   const [resultData, setResultData] = useState([]);
   const route = useRoute();
+  const {token} = route.params;
+
 
   useEffect(() => {
     fetch('http://192.168.0.104:8000/home/blight/')
@@ -26,18 +27,6 @@ const Main = ({ navigation }) => {
         return response.json();
       })
       .then((data) => setBlights(data.result))
-      .catch((error) => console.error('요청 에러: ', error));
-  }, []);
-
-  useEffect(() => {
-    fetch('http://192.168.0.104:8000/home/history/')
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('네트워크 오류');
-        }
-        return response.json();
-      })
-      .then((data) => setHistories(data.result))
       .catch((error) => console.error('요청 에러: ', error));
   }, []);
 
@@ -76,17 +65,6 @@ const Main = ({ navigation }) => {
       title: item.title,
       image: item.image,
       explanation: item.explanation,
-    });
-  };
-
-    
-  const handleRecord = (item) => {
-    navigation.navigate('Result_', {
-      title: item.name,
-      image: item.image,
-      explanation: item.explanation,
-      date: item.created_at,
-      bookmarked: item.bookmarked,
     });
   };
 
@@ -129,6 +107,55 @@ const Main = ({ navigation }) => {
     );
   };
 
+  const handleBookmarkAndUpdateData = async (item) => {
+    try {
+      const response = await fetch(
+        `http://192.168.1.101:8000/home/history/${item.id}/`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ bookmarked: !item.bookmarked }),
+        }
+      );
+  
+      if (!response.ok) {
+        throw new Error('서버 응답 오류');
+      }
+      
+      const updatedData = data.map((dataItem) => {
+        if (dataItem.id === item.id) {
+          const updateItem = { ...dataItem, bookmarked: !dataItem.bookmarked };
+          return updateItem;
+        }
+        return dataItem;
+      });
+  
+      setData(updatedData);
+  
+    
+    fetchData();
+  
+    } catch (error) {
+      console.error('오류 발생:', error);
+    }
+  };
+
+  const handleRecord = (item) => {
+    navigation.navigate('Result_', {
+      title: item.name,
+      image: item.history_img,
+      explanation: item.causation,
+      date: item.created_at,
+      bookmarked: item.bookmarked,
+      updateBookmark: handleBookmarkAndUpdateData,
+      token: token,
+
+    });
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.scrollViewContent}>
       <View style={styles.container}>
@@ -146,17 +173,11 @@ const Main = ({ navigation }) => {
         ))}
 
         <Text style={styles.container2}>나의 지난 기록</Text>
-        {histories.map((history) => (
-          <TouchableOpacity
-            key={history.id}
-            onPress={() => navigation.navigate('Result_', { historyId: history.id })}
-          >
-            <View style={styles.imageContainer}>
-              <Image source={{ uri: getImage(history.history_img) }} style={styles.image} />
-              <Text style={styles.smallTitle}>{history.name}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+        <FlatList
+          data={resultData}
+          renderItem={itemRenderer}
+          keyExtractor={(item) => item.id.toString()}
+        />
       </View>
     </ScrollView>
   );

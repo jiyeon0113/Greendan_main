@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Alert,
   Image,
   FlatList,
   Modal,
@@ -11,16 +12,16 @@ import {
 } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import {Camera, useCameraDevices} from 'react-native-vision-camera';
-import RNFS from 'react-native-fs';
+import Result from './Result';
 
-const Camera1 = ({ navigation }) => {
+const Camera = ({ navigation }) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const route = useRoute();
   const { token, email, pk } = route.params;
+  console.log('이메일',email);
 
   const openCamera = () => {
     launchCamera({ mediaType: 'photo' }, (response) => {
@@ -36,36 +37,45 @@ const Camera1 = ({ navigation }) => {
       if (!response.didCancel) {
         setSelectedImage(response.uri);
         setShowPopup(true);
-        const formData = new FormData();
-        formData.append('user_image', {
-          uri: response.assets[0].uri,
-          type: response.assets[0].type,
-          name: response.assets[0].fileName,
+        savePhoto(photo.path);
+      } 
+
+      const formData = new FormData();
+      formData.append('user_image', {
+        uri: response.assets[0].uri,
+        type: response.assets[0].type,
+        name: response.assets[0].fileName,
+      });
+      formData.append('email', email);
+      console.log('폼데이터:',formData);
+
+      try {
+        const djServer = await fetch('http://192.168.1.104:8000/photo/test/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
         });
-        formData.append('email', email);
 
-        try {
-          const djServer = await fetch('http://192.168.0.104:8000/photo/test/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'multipart/form-data',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: formData,
-          });
-
-          if (djServer.status === 200) {
-            const data = await djServer.json();
-            setResult(data);
-          } else {
-            console.error('사진 업로드 실패');
-          }
-        } catch (error) {
-          console.error('사진 업로드 중 오류:', error);
+        if (djServer.status === 200) {
+          const data = await djServer.json();
+          setResult(data);
+          console.log('데이터 확인:', data);
+        } else {
+          console.error('사진 업로드 실패');
         }
+      } catch (error) {
+        console.error('사진 업로드 중 오류:', error);
       }
     });
   };
+
+  async function savePhoto(data) {
+    const filename = 'test.jpeg';
+    await RNFS.moveFile(data, `${RNFS.PicturesDirectoryPath}/${filename}`);
+  }
 
   const handleDiagnose = () => {
     setIsLoading(true); // 로딩 상태를 true로 변경
@@ -76,6 +86,7 @@ const Camera1 = ({ navigation }) => {
       setShowPopup(false);
       navigation.navigate('Past_Result', { token, email, result });
     }, 2000); // 2초
+    // 실제 작업 코드는 여기에 작성되어야 함
   };
 
   const buttons = [
@@ -89,39 +100,6 @@ const Camera1 = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  const camera = useRef(null); // 타입 주석 제거
-  const devices = useCameraDevices();
-  const device = devices.back;
-
-  const [showCamera, setShowCamera] = useState(false);
-  const [imageSource, setImageSource] = useState('');
-
-  useEffect(() => {
-    async function getPermission() {
-      const newCameraPermission = await Camera.requestCameraPermission();
-      console.log(newCameraPermission);
-    }
-    getPermission();
-  }, []);
-
-  async function capturePhoto() {
-    if (camera.current !== null) {
-      const photo = await camera.current.takePhoto({});
-      setImageSource(photo.path);
-      setShowCamera(false);
-      savePhoto(photo.path);
-      console.log(photo.path);
-    }
-  }
-  async function savePhoto(data) { // 타입 주석 제거
-    const filename = 'test.jpeg';
-    await RNFS.moveFile(data, `${RNFS.PicturesDirectoryPath}/${filename}`);
-  }
-
-  if (device == null) {
-    return <Text>Camera not available</Text>;
-}
-
   return (
     <View style={styles.container}>
       <FlatList
@@ -130,7 +108,7 @@ const Camera1 = ({ navigation }) => {
         keyExtractor={(item) => item.key}
         contentContainerStyle={styles.buttonContainer}
       />
-      {selectedImage && (
+      {selectedImage  && (
         <Image source={{ uri: selectedImage }} style={styles.image} />
       )}
       {showPopup && (
@@ -156,6 +134,7 @@ const Camera1 = ({ navigation }) => {
         </View>
       )}
 
+      {/* 로딩 화면 */}
       <Modal visible={isLoading} transparent={true}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#8CB972" />
@@ -213,6 +192,7 @@ const styles = StyleSheet.create({
   },
   popupButton: {
     backgroundColor: '#8CB972',
+
     borderRadius: 5,
     margin: 5,
     width: 100,
@@ -239,4 +219,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Camera1;
+export default Camera;

@@ -39,6 +39,7 @@ import PrivacyPolicy from './src/screens/screensSetting/PrivacyPolicy';
 import SoftwareLicense from './src/screens/screensSetting/SoftwareLicense';
 
 import NoticeDetail from './src/screens/screensSetting/NoticeDetail';
+import EditInquiry from './src/screens/screensSetting/EditInquiry';
 
 const Stack = createStackNavigator();
 const Tab = createMaterialTopTabNavigator();
@@ -183,6 +184,11 @@ const App = () => {
             <Stack.Screen
             name="NoticeDetail"
             component={NoticeDetail}
+            options={{headerShown: false}}
+            />
+            <Stack.Screen
+            name="EditInquiry"
+            component={EditInquiry}
             options={{headerShown: false}}
             />
         </Stack.Navigator>

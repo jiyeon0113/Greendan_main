@@ -4,9 +4,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, useFocusEffect  } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { PERMISSIONS, RESULTS, check, request } from 'react-native-permissions';
-import { RNCamera } from 'react-native-camera';
-import RNFS from 'react-native-fs';
-
 
 const MyProfile = () => {
     const [response, setResponse] = useState(null); 
@@ -63,16 +60,9 @@ const MyProfile = () => {
         };
 
         launchCamera(options, (response) => {
-            if (response.didCancel) {
-                // 사용자가 카메라를 취소한 경우
-                console.log('카메라 캡처가 취소되었습니다.');
-            } else if (response.errorCode) {
-                // 오류가 발생한 경우
-                console.log('카메라 오류:', response.errorMessage);
-            } else {
-                // 사용자가 사진을 캡처한 경우
+            if (!response.didCancel) {
                 const source = { uri: response.uri };
-                setImage(source); // 이미지 상태 업데이트
+                setImage(source);
             }
         });
     };
@@ -103,7 +93,7 @@ const MyProfile = () => {
                 });
     
                 try {
-                    const djServer = await fetch(`http://172.18.89.174:8000/accounts/change/profile/${pk}/`, {
+                    const djServer = await fetch(`http://192.168.0.104:8000/accounts/change/profile/${pk}/`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'multipart/form-data',
@@ -155,7 +145,7 @@ const MyProfile = () => {
     const handleSaveProfile = async () => {
         if (editusername) {
             try {
-                const djServer = await fetch('http://172.18.89.174:8000/accounts/change/username/', {
+                const djServer = await fetch('http://192.168.0.104:8000/accounts/change/username/', {
                     method: 'PUT',
                     headers: {
                         Authorization: `Bearer ${token}`,
