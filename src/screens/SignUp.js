@@ -23,7 +23,7 @@ const SignUp = () => {
     const handleSignUp = async () => {
         const djServer = 'http://192.168.0.104:8000/accounts/dj-rest-auth/registration/';
 
-        if (username.length < 3 || email.length < 1 || password1.length < 1 || password2.length < 1) {
+        if (username.length < 1 || email.length < 1 || password1.length < 1 || password2.length < 1) {
             Alert.alert('경고', '입력되지 않은 칸이 있습니다! 모두 입력해 주세요!', [{ text: '확인' }]);
         } else if (!isEmailValid(email)) {
             Alert.alert('경고', '이메일 형식이 아닙니다.', [{ text: '확인' }]);

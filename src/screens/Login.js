@@ -9,12 +9,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import versionCheck from 'react-native-version-check'; // 추가: react-native-version-check 라이브러리를 임포트
 
 const LoginScreen = () => {
     const navigation = useNavigation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [token, setToken] = useState('');
+    const [currentVersion, setCurrentVersion] = useState('vol 0.0.92'); // 추가: 현재 앱 버전 상태 추가
 
     useEffect(() => {
         const getToken = async () => {
@@ -154,7 +156,9 @@ const LoginScreen = () => {
                 horizontal
                 contentContainerStyle={styles.buttonContainer}
             />
-            <Text style={styles.text}>vol.0.9</Text>
+            <View>
+            <Text style={styles.text}>현재 버전: {currentVersion}</Text>
+            </View>
         </View>
     );
 };
