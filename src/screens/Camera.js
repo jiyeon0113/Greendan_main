@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import RNFS from 'react-native-fs';
 import Result from './Result';
+import DjangoIP from '../components/SetIP';
 
 const Camera = ({ navigation }) => {
   const [selectedImage, setSelectedImage] = useState(null);
@@ -23,71 +25,139 @@ const Camera = ({ navigation }) => {
   const { token, email, pk } = route.params;
   console.log('이메일',email);
 
+  const [imagePath, setImagePath] = useState(null); 
+  const [responseForDiagnose, setResponseForDiagnose] = useState(null); 
+  const [serverResponse, setServerResponse] = useState(null);
+
   const openCamera = () => {
-    launchCamera({ mediaType: 'photo' }, (response) => {
+    const options = {
+      mediaType: 'photo',
+      saveToPhotos: true,
+    };
+  
+    launchCamera(options, async (response) => {
       if (!response.didCancel) {
-        setSelectedImage(response.uri);
-        setShowPopup(true);
+        if (response.assets && response.assets.length > 0) {
+          const imagePath = response.assets[0].uri; // 이미지 경로 가져오기
+          const responseForDiagnose = response;
+          setImagePath(imagePath);
+          setResponseForDiagnose(responseForDiagnose);
+          console.log('이미지 경로 : ', imagePath);
+  
+          // imagePath 저장
+          try {
+            const savedImagePath = await saveImageToFileSystem(imagePath);
+  
+            if (response.assets && response.assets.length > 0) {
+              const asset = response.assets[0];
+              console.log('우아', asset);
+              if (asset.uri) {
+                await saveImageToGallery(savedImagePath);
+                setShowPopup(true);
+              }
+            }
+          } catch (error) {
+            console.error('사진 저장 오류 : ', error);
+          }
+        }
       }
     });
+  };
+
+  // 내 파일에 이미지 저장
+  const saveImageToFileSystem = async (imagePath) => {
+    try {
+      const savedImagePath = `${RNFS.DocumentDirectoryPath}/saved_image.jpg`;
+      await RNFS.copyFile(imagePath, savedImagePath);
+      console.log('이미지를 내 파일에 저장', savedImagePath);
+      return savedImagePath;
+    } catch (error) {
+      throw new Error('이미지를 내 파일에 저장 실패!');
+    }
+  };
+
+  // 갤러리에 이미지 저장
+  const saveImageToGallery = async (imagePath) => {
+    try {
+      await RNFS.copyFile(imagePath, RNFS.ExternalStorageDirectoryPath + '/DCIM/saved_image.jpg');
+      console.log('이미지를 갤러리에 저장');
+    } catch (error) {
+      throw new Error('이미지를 갤러리에 저장 실패!');
+    }
+  };
+
+  // 서버로 이미지 업로드
+  const uploadImageToServer = async (imagePath, type, fileName) => {
+      try {
+      const formData = new FormData();
+      formData.append('user_image', {
+        uri: imagePath,
+        type,
+        name: fileName,
+      });
+      formData.append('email', email);
+      console.log('폼데이터', formData);
+
+      const djServer = await fetch(`${DjangoIP}/photo/test/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (djServer.status === 200) {
+        const data = await djServer.json();
+        console.log('데이터 확인: ', data);
+        return data;
+      } else {
+        console.error('사진 업로드 실패');
+        throw new Error('사진 업로드 실패');
+      }
+    } catch (error) {
+      console.error('사진 업로드 중 오류: ', error);
+      throw error;
+    }
   };
 
   const openGallery = async () => {
     launchImageLibrary({ mediaType: 'photo' }, async (response) => {
       if (!response.didCancel) {
-        setSelectedImage(response.uri);
+        const imagePath =  response.assets[0].uri;
+        const responseForDiagnose = response;
+        setImagePath(imagePath);
+        setResponseForDiagnose(responseForDiagnose);
+        console.log('갤러리', imagePath, responseForDiagnose);
         setShowPopup(true);
-        savePhoto(photo.path);
-      } 
-
-      const formData = new FormData();
-      formData.append('user_image', {
-        uri: response.assets[0].uri,
-        type: response.assets[0].type,
-        name: response.assets[0].fileName,
-      });
-      formData.append('email', email);
-      console.log('폼데이터:',formData);
-
-      try {
-        const djServer = await fetch('http://192.168.1.104:8000/photo/test/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: formData,
-        });
-
-        if (djServer.status === 200) {
-          const data = await djServer.json();
-          setResult(data);
-          console.log('데이터 확인:', data);
-        } else {
-          console.error('사진 업로드 실패');
-        }
-      } catch (error) {
-        console.error('사진 업로드 중 오류:', error);
-      }
-    });
-  };
-
-  async function savePhoto(data) {
-    const filename = 'test.jpeg';
-    await RNFS.moveFile(data, `${RNFS.PicturesDirectoryPath}/${filename}`);
+    }
+  });
   }
+  
 
-  const handleDiagnose = () => {
-    setIsLoading(true); // 로딩 상태를 true로 변경
+  const handleDiagnose = async () => {
+    console.log('팝업창',imagePath, responseForDiagnose);
 
-    // 가상의 로딩 시간을 지연시킴 (실제 작업이 여기에 와야 함)
-    setTimeout(() => {
+    try {
+      if (imagePath && responseForDiagnose) {
+        setIsLoading(true);
+        const data = await uploadImageToServer(imagePath, responseForDiagnose.assets[0].type, responseForDiagnose.assets[0].fileName);
+        console.log('팝업창에서',imagePath, responseForDiagnose.assets[0].type, responseForDiagnose.assets[0].fileName);
+        setServerResponse(data);
+        navigation.navigate('Past_Result', { token, email, result: data });
+      } else {
+        console.error('이미지 또는 response가 없습니다.');
+      }
+    } catch (error) {
+      console.error('이미지 업로드 중 오류:', error);
+    } finally {
       setIsLoading(false);
       setShowPopup(false);
-      navigation.navigate('Past_Result', { token, email, result });
-    }, 2000); // 2초
-    // 실제 작업 코드는 여기에 작성되어야 함
+    }
   };
+
+
+  
 
   const buttons = [
     { key: 'camera', title: '카메라', onPress: openCamera },

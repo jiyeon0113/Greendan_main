@@ -10,16 +10,17 @@ import {
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
+import DjangoIP from '../components/SetIP';
 
 const Main = ({ navigation }) => {
   const [blights, setBlights] = useState([]);
-  const [resultData, setResultData] = useState([]);
+  const [data, setData] = useState([]);
   const route = useRoute();
-  const {token} = route.params;
+  const {token, email} = route.params;
 
 
   useEffect(() => {
-    fetch('http://192.168.0.104:8000/home/blight/')
+    fetch(`${DjangoIP}/home/blight/`)
       .then((response) => {
         if (!response.ok) {
           throw new Error('네트워크 오류');
@@ -33,7 +34,7 @@ const Main = ({ navigation }) => {
   useFocusEffect(
     React.useCallback(() => {
       const { email } = route.params;
-      fetch('http://192.168.0.104:8000/home/history/')
+      fetch(`${DjangoIP}/home/history/`)
         .then((response) => {
           if (!response.ok) {
             throw new Error('네트워크 오류');
@@ -43,7 +44,7 @@ const Main = ({ navigation }) => {
         .then((data) => {
           if (data.code === 200) {
             const filteredData = data.result.filter((item) => item.email === email);
-            setResultData(filteredData);
+            setData(filteredData);
           } else {
             console.error('데이터 가져오기 실패:', data.message);
           }
@@ -54,7 +55,7 @@ const Main = ({ navigation }) => {
 
   const getImage = (imagepath) => {
     try {
-      return `http://192.168.0.104:8000${imagepath}`;
+      return `${DjangoIP}${imagepath}`;
     } catch (error) {
       console.log('이미지 URL을 가져오는 오류 발생:', error);
     }
@@ -110,7 +111,7 @@ const Main = ({ navigation }) => {
   const handleBookmarkAndUpdateData = async (item) => {
     try {
       const response = await fetch(
-        `http://192.168.1.101:8000/home/history/${item.id}/`,
+        `${DjangoIP}/home/history/${item.id}/`,
         {
           method: 'PATCH',
           headers: {
@@ -135,9 +136,6 @@ const Main = ({ navigation }) => {
   
       setData(updatedData);
   
-    
-    fetchData();
-  
     } catch (error) {
       console.error('오류 발생:', error);
     }
@@ -145,6 +143,7 @@ const Main = ({ navigation }) => {
 
   const handleRecord = (item) => {
     navigation.navigate('Result_', {
+      id: item.id,
       title: item.name,
       image: item.history_img,
       explanation: item.causation,
@@ -152,7 +151,7 @@ const Main = ({ navigation }) => {
       bookmarked: item.bookmarked,
       updateBookmark: handleBookmarkAndUpdateData,
       token: token,
-
+      email
     });
   };
 
@@ -174,7 +173,7 @@ const Main = ({ navigation }) => {
 
         <Text style={styles.container2}>나의 지난 기록</Text>
         <FlatList
-          data={resultData}
+          data={data}
           renderItem={itemRenderer}
           keyExtractor={(item) => item.id.toString()}
         />

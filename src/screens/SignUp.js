@@ -4,6 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DjangoIP from '../components/SetIP';
 
 const SignUp = () => {
     const [username, setUsername] = useState('');
@@ -21,17 +22,17 @@ const SignUp = () => {
     };
 
     const handleSignUp = async () => {
-        const djServer = 'http://192.168.0.104:8000/accounts/dj-rest-auth/registration/';
+        const djServer = `${DjangoIP}/accounts/dj-rest-auth/registration/`;
 
         if (username.length < 1 || email.length < 1 || password1.length < 1 || password2.length < 1) {
             Alert.alert('경고', '입력되지 않은 칸이 있습니다! 모두 입력해 주세요!', [{ text: '확인' }]);
+        } else if (username.length < 3) {
+            Alert.alert('경고', '닉네임은 3자리 이상으로 설정해 주세요!', [{ text: '확인' }]);
         } else if (!isEmailValid(email)) {
             Alert.alert('경고', '이메일 형식이 아닙니다.', [{ text: '확인' }]);
         } else if (password1 !== password2) {
             Alert.alert('경고', '비밀번호가 일치하지 않습니다.', [{ text: '확인' }]);
         } else if (password1.length < 8) {
-            Alert.alert('경고', '비밀번호는 8자리 이상으로 설정해 주세요!', [{ text: '확인' }]);
-        } else if (username.length < 3) {
             Alert.alert('경고', '비밀번호는 8자리 이상으로 설정해 주세요!', [{ text: '확인' }]);
         }else {
             // 가입 처리 로직 실행 및 팝업 표시
@@ -50,7 +51,7 @@ const SignUp = () => {
                     return;
                 }
 
-                const csrfResponse = await axios.get('http://192.168.0.104:8000/accounts/get-csrf-token/');
+                const csrfResponse = await axios.get(`${DjangoIP}/accounts/get-csrf-token/`);
                 csrfToken = csrfResponse.data.csrf_token;
 
                 const response = await axios.post(

@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, Switch } fro
 import { useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
 import Modal from 'react-native-modal';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import DjangoIP from '../../components/SetIP';
 
 
 const Mypage = () => {
@@ -62,7 +63,7 @@ const Mypage = () => {
 
         try {
             // 서버에서 유저 프로필 정보를 가져오는 API 엔드포인트로 수정
-            const djServer = await fetch(`http://172.18.89.174:8000/accounts/profile/${pk}/`, {
+            const djServer = await fetch(`${DjangoIP}/accounts/profile/${pk}/`, {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${token}` // 토큰 추가
@@ -78,7 +79,7 @@ const Mypage = () => {
                     setUsername(username);
                     console.log(username);
             }
-
+            
             } else {
                 console.error('사용자 정보를 불러오는 데 실패했습니다.');
             }
@@ -109,7 +110,7 @@ const Mypage = () => {
                 {renderBackButton()}
             </View>
             <Text style={styles.appName}>GreenDan</Text>
-            <Image source={{ uri:`http://192.168.0.104:8000${profileImage}` }} style={styles.profileImage} />
+            <Image source={{ uri:`${DjangoIP}${profileImage}` }} style={styles.profileImage} />
             <Text style={styles.welcomeText}>환영합니다!</Text>
             <Text style={styles.username}>{username}</Text>
             <FlatList
@@ -171,7 +172,7 @@ const styles = StyleSheet.create({
         marginVertical: 20,
     },
     welcomeText: {
-        fontSize: 30,
+        fontSize: 20,
         color: '#CBDFC0',
     },
     nickname: {
@@ -246,6 +247,10 @@ const styles = StyleSheet.create({
     },
     pushNotificationContainer: {
         top: -80,
+    },
+    username: {
+        padding:10,
+        fontSize: 30,
     },
 });
 

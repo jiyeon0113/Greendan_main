@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import DjangoIP from '../../components/SetIP';
+
 
 const Notice = () => {
     const navigation = useNavigation();
@@ -9,22 +11,22 @@ const Notice = () => {
     const [noticeData, setNoticeData] = useState([]);
 
     useEffect(() => {
-        fetch('http://192.168.0.104:8000/info/report')
-            .then((response) => {
-                if (!response.ok) {
-                throw new Error('네트워크 오류');
-                }
-                return response.json();
-            })
-            .then((data) => {
-                if (data.result) {
-                setNoticeData(data.result);
-                } else {
-                console.error('데이터 가져오기 실패');
-                }
-            })
-            .catch((error) => console.error('요청 에러: ', error));
-        }, []);
+        fetch(`${DjangoIP}/info/report`)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error('네트워크 오류');
+            }
+            return response.json();
+          })
+          .then((data) => {
+            if (data.result) {
+              setNoticeData(data.result);
+            } else {
+              console.error('데이터 가져오기 실패');
+            }
+          })
+          .catch((error) => console.error('요청 에러: ', error));
+      }, []);
 
 
     const handleExpand = (item) => {
@@ -39,7 +41,7 @@ const Notice = () => {
         const day = String(date.getDate()).padStart(2, '0');
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
-    
+      
         const formattedDate = `Date: ${year}-${month}-${day} ${hours}:${minutes}`;
     
     return (
